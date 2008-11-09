@@ -1,0 +1,31 @@
+telepathy-mixer-0.1.0
+=====================
+
+Initial release
+  * Supported features
+    o Sending & receiving messages
+    o Sending & receiving presence
+    o Receiving moods
+    o Renaming buddies
+    o Moving buddies between groups
+    o Inviting buddies
+    o Receiving invitations (auto-accepts)
+    o MultiMX chats partially supported (cannot create)
+    o Service menus display properly
+    
+  * Known issues
+    o Auto-accepts invitations - might be Empathy-specific
+    o Connection might stop responding if idle for a long time
+    
+    
+Planned support for future versions
+===================================
+  * Definetly
+    o Display of splash-screen ads
+    o Sending and receiving files
+    o Full support for chat rooms/MultiMX chats
+    
+  * Maybe (not generic IM features - might be difficult to implement)
+    o Settings moods
+    o Proper service menus, including clickable links
+    

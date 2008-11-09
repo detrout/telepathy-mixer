@@ -1,0 +1,14 @@
+[ConnectionManager]
+Name = mixer
+BusName = org.freedesktop.Telepathy.ConnectionManager.mixer
+ObjectPath = /org/freedesktop/Telepathy/ConnectionManager/mixer
+
+[Protocol mxit]
+param-account = s required
+param-password = s required
+param-client_id = s required
+param-server = s
+param-port = q
+default-server = stream.mxit.co.za
+default-port = 9119
+

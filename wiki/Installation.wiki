@@ -1,4 +1,5 @@
 #summary Installation of Telepathy-Mixer
+#labels Featured,Phase-Deploy
 
 = Installation on Ubuntu 8.10 =
 

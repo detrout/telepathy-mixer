@@ -42,3 +42,7 @@ XXXXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXXXXXXXXXX
 Now run Empathy, and go to the account manager. Create a new account of type MXit. In the Client_id field, paste the code you just copied. Account is your phone number, in the format 27821234567. Password is your MXit pin.
 
 Note that the codes cannot be reused for different accounts.
+
+= Feedback =
+
+This is the first release, and will probably contain many bugs. Please let me know what your experience is.

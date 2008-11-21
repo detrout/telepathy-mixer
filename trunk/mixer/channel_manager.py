@@ -27,7 +27,11 @@ import telepathy
 from mixer.channel.contact_list import MixerContactListChannelFactory
 from mixer.channel.group import MixerGroupChannel
 from mixer.channel.text import MixerTextChannel
+from mixer.channel.multitext import MixerRoomChannel
+from mixer.channel.roomlist import MixerRoomListChannel
 from mixer.handle import MixerHandleFactory
+
+from mxit.handles import BuddyType
 
 __all__ = ['ChannelManager']
 
@@ -45,11 +49,17 @@ class ChannelManager(object):
         self.con = connection
         self._list_channels = weakref.WeakValueDictionary()
         self._text_channels = weakref.WeakValueDictionary()
+        self._room_channels = weakref.WeakValueDictionary()
+        self._room_list_channels = weakref.WeakValueDictionary()
 
     def close(self):
         for channel in self._list_channels.values():
             channel.remove_from_connection()        # so that dbus lets it die.
         for channel in self._text_channels.values():
+            channel.Close()
+        for channel in self._room_channels.values():
+            channel.Close()
+        for channel in self._room_list_channels.values():
             channel.Close()
 
     def channel_for_list(self, handle, suppress_handler=False):
@@ -65,7 +75,9 @@ class ChannelManager(object):
         
         return channel
 
-    def channel_for_text(self, handle, conversation=None, suppress_handler=False):
+    def channel_for_text(self, handle, suppress_handler=False):
+        #if handle.contact.type == BuddyType.ROOM:
+        #    return self.channel_for_room(handle)
         if handle in self._text_channels:
             channel = self._text_channels[handle]
         else:
@@ -76,3 +88,20 @@ class ChannelManager(object):
             self.con.add_channel(channel, handle, suppress_handler)
         return channel
     
+    def channel_for_room(self, handle, suppress_handler=False):
+        if handle in self._room_channels:
+            channel = self._room_channels[handle]
+        else:            
+            channel = MixerRoomChannel(self.con, handle)
+            self._room_channels[handle] = channel
+            self.con.add_channel(channel, handle, suppress_handler)
+        return channel
+    
+    def channel_for_roomlist(self, handle, suppress_handler=False):
+        if handle in self._room_list_channels:
+            channel = self._room_list_channels[handle]
+        else:
+            channel = MixerRoomListChannel(self.con, handle)
+            self._room_list_channels[handle] = channel
+            self.con.add_channel(channel, handle, suppress_handler)
+        return channel

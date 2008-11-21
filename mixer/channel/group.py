@@ -41,7 +41,7 @@ class MixerGroupChannel(MixerListChannel):
         MixerListChannel.__init__(self, connection, handle)
         
         self.GroupFlagsChanged(telepathy.CHANNEL_GROUP_FLAG_CAN_ADD | 
-                telepathy.CHANNEL_GROUP_FLAG_CAN_REMOVE, 0)
+                telepathy.CHANNEL_GROUP_FLAG_CAN_REMOVE | telepathy.CHANNEL_GROUP_FLAG_ONLY_ONE_GROUP, 0)
         
 
     @logexceptions(logger)

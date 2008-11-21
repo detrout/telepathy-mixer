@@ -28,7 +28,7 @@ import time
 import telepathy
 
 from mxit.connection import MxitConnection
-from mxit.handles import Status, StatusChangeReason
+from mxit.handles import Status, StatusChangeReason, BuddyType, Message
 
 from mixer.presence import MixerPresence
 from mixer.aliasing import MixerAliasing
@@ -50,20 +50,62 @@ class MixerListener:
         
     def message_received(self, message):
         sender = message.buddy
-        handle = MixerHandleFactory(self.con, 'contact', sender.jid)
-        channel = self.con._channel_manager.channel_for_text(handle)
-        channel.message_received(message)
+        if sender.type == BuddyType.ROOM:
+            logger.info("Ignoring message: %s" % message)
+        else:
+            handle = MixerHandleFactory(self.con, 'contact', sender.jid)
+            channel = self.con._channel_manager.channel_for_text(handle)
+            channel.message_received(message)
         
+    def room_message_received(self, room, message):
+        channel = self.con.get_room_channel(room)
+        contact_handle = self.con.handle_for_buddy(message.buddy)
+        channel.message_received(contact_handle, message)
+    
+    def room_buddies_joined(self, room, buddies):
+        logger.info("These buddies joined: %s" % [buddy.name for buddy in buddies])
+        channel = self.con.get_room_channel(room)
+        channel.buddies_joined(buddies)
+        
+    def room_buddies_left(self, room, buddies):
+        logger.info("These buddies left: %s" % [buddy.name for buddy in buddies])
+        channel = self.con.get_room_channel(room)
+        channel.buddies_left(buddies)
+    
+    def room_added(self, room):
+        channel = self.con.get_room_channel(room)
+        channel._set(name=room.name)
+        
+    def room_updated(self, room, **attrs):
+        channel = self.con.get_room_channel(room)
+        if 'name' in attrs:
+            channel._set(name=room.name)
+            
+    def room_create_error(self, name, response):
+        handle = MixerHandleFactory(self.con, 'room', name)
+        channel = self.con._channel_manager.channel_for_room(handle)
+        message = Message(self.con.mxit.roster.info_buddy, response.message)
+        channel.message_received(self.con.handle_for_buddy(self.con.mxit.roster.info_buddy), message)
+        
+    
     def message_sent(self, message):
         recipient = message.buddy
-        handle = MixerHandleFactory(self.con, 'contact', recipient.jid)
-        channel = self.con._channel_manager.channel_for_text(handle)
+        if recipient.type == BuddyType.ROOM:
+            channel = self.con.get_room_channel(recipient)
+        else:
+            handle = MixerHandleFactory(self.con, 'contact', recipient.jid)
+            channel = self.con._channel_manager.channel_for_text(handle)
+            
         channel.Sent(int(time.time()), telepathy.CHANNEL_TEXT_MESSAGE_TYPE_NORMAL, message.message)
         
+    
     def message_error(self, message, error="Message cannot be delivered"):        
         recipient = message.buddy
-        handle = MixerHandleFactory(self.con, 'contact', recipient.jid)
-        channel = self.con._channel_manager.channel_for_text(handle)
+        if recipient.type == BuddyType.ROOM:
+            channel = self.con.get_room_channel(recipient)
+        else:
+            handle = MixerHandleFactory(self.con, 'contact', recipient.jid)
+            channel = self.con._channel_manager.channel_for_text(handle)
         
         ts = int(time.time())
         channel.SendError(ts, telepathy.CHANNEL_TEXT_SEND_ERROR_UNKNOWN, telepathy.CHANNEL_TEXT_MESSAGE_TYPE_NORMAL, message.message)
@@ -93,7 +135,7 @@ class MixerListener:
             channel.buddy_added(buddy)
             
         self._add_to_group(buddy)
-        #self.con._contact_alias_changed(buddy)
+        self.con._contact_alias_changed(buddy)
                     
     def buddy_removed(self, buddy):
         for handle, channel in self.con._channel_manager._list_channels.items():
@@ -195,6 +237,10 @@ class MixerConnection(telepathy.server.Connection, MixerPresence, MixerAliasing)
     
    
     def handle(self, handle_type, handle_id):
+        if handle_type == 0 and handle_id != 0:
+            raise "exceptions"
+        if handle_type == 0 and handle_id == 0:
+            return MixerHandleFactory(self, 'none')    #HACK
         self.check_handle(handle_type, handle_id)
         return self._handles[handle_type, handle_id]
 
@@ -228,7 +274,13 @@ class MixerConnection(telepathy.server.Connection, MixerPresence, MixerAliasing)
                 handle = MixerHandleFactory(self, 'list', name)
             elif handle_type == telepathy.HANDLE_TYPE_GROUP:
                 handle = MixerHandleFactory(self, 'group', name)
-                logger.info("handle for group: %s" % handle)
+                logger.info("handle for group: %s" % name)
+            elif handle_type == telepathy.HANDLE_TYPE_ROOM:
+                handle = MixerHandleFactory(self, 'room', name)
+                logger.info("handle for room: %s" % name)
+            elif handle_type == telepathy.HANDLE_TYPE_NONE:
+                handle = MixerHandleFactory(self, 'none')
+                logger.info("handle none")
             else:
                 raise telepathy.NotAvailable('Handle type unsupported %d' % handle_type)
             handles.append(handle.id)
@@ -238,17 +290,28 @@ class MixerConnection(telepathy.server.Connection, MixerPresence, MixerAliasing)
     @logexceptions(logger)
     def RequestChannel(self, type, handle_type, handle_id, suppress_handler):    
         self.check_connected()
-
+        
+        logger.info("requestion channel of type %s for handle %s, %s" % (type, handle_type, handle_id))
         channel = None
         channel_manager = self._channel_manager
         handle = self.handle(handle_type, handle_id)
+        logger.info("handle: %r" % handle)
         if type == telepathy.CHANNEL_TYPE_CONTACT_LIST:
             channel = channel_manager.channel_for_list(handle, suppress_handler)
         elif type == telepathy.CHANNEL_TYPE_TEXT:
-            if handle_type != telepathy.HANDLE_TYPE_CONTACT:
-                raise telepathy.NotImplemented("Only Contacts are allowed")
+            if handle_type == telepathy.HANDLE_TYPE_CONTACT:
+                channel = channel_manager.channel_for_text(handle, suppress_handler)
+            elif handle_type == telepathy.HANDLE_TYPE_ROOM:
+                channel = channel_manager.channel_for_room(handle, suppress_handler)
+            else:
+                raise telepathy.NotImplemented("Only Contacts and Rooms are allowed")
             
-            channel = channel_manager.channel_for_text(handle, None, suppress_handler)
+        elif type == telepathy.CHANNEL_TYPE_ROOM_LIST:
+            channel = channel_manager.channel_for_roomlist(handle, suppress_handler)
+            #logger.info("Path: %s" % channel._object_path)
+            #logger.info("Channel for roomlist with handle: %r" % handle)
+            #return None
+            #raise telepathy.NotImplemented("room list not implemented")
         else:
             raise telepathy.NotImplemented("unknown channel type %s" % type)
         
@@ -277,6 +340,10 @@ class MixerConnection(telepathy.server.Connection, MixerPresence, MixerAliasing)
         handle = MixerHandleFactory(self, 'list', name)
         return self._channel_manager.channel_for_list(handle)
         
+    def get_room_channel(self, room):
+        handle = MixerHandleFactory(self, 'room', room.name)
+        return self._channel_manager.channel_for_room(handle)
+    
     def get_group_channels(self):
         channels = []
         for handle, ch in self._channel_manager._list_channels.items():

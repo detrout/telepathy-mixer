@@ -30,10 +30,12 @@ logger = logging.getLogger('Mixer.Handle')
 
 
 def MixerHandleFactory(connection, type, *args):
-    mapping = {'self': MixerSelfHandle,
+    mapping = {'none': MixerNoneHandle,
+               'self': MixerSelfHandle,
                'contact': MixerContactHandle,
                'list': MixerListHandle,
-               'group': MixerGroupHandle}
+               'group': MixerGroupHandle,
+               'room': MixerRoomHandle}
     handle = mapping[type](connection, *args)
     connection._handles[handle.get_type(), handle.get_id()] = handle
     return handle
@@ -61,6 +63,9 @@ class MixerHandle(telepathy.server.Handle):
         return cls.instances[key], False
 
     def __init__(self, connection, id, handle_type, name):
+        #HACK
+        if handle_type == 0:
+            id = 0
         telepathy.server.Handle.__init__(self, id, handle_type, name)
         self._conn = weakref.proxy(connection)
 
@@ -92,7 +97,15 @@ class MixerSelfHandle(MixerHandle):
         return self._conn.mxit.roster.self_buddy
     
 
+class MixerNoneHandle(MixerHandle):
+    def __init__(self, connection, id):
+        handle_type = telepathy.HANDLE_TYPE_NONE
+        handle_name = "none"
+        id = 0    #HACK
+        self._connection = connection
+        MixerHandle.__init__(self, connection, id, handle_type, handle_name)
 
+    
 class MixerContactHandle(MixerHandle):
     def __init__(self, connection, id, jid):
         handle_type = telepathy.HANDLE_TYPE_CONTACT
@@ -106,7 +119,20 @@ class MixerContactHandle(MixerHandle):
     def contact(self):
         return self._conn.mxit.roster.get_buddy(self.jid)
     
+class MixerRoomHandle(MixerHandle):
+    def __init__(self, connection, id, room_name):
+        
+        handle_type = telepathy.HANDLE_TYPE_ROOM
+        #if jid.startswith('ROOM'):
+        #    jid = jid[4:]
+        #handle_name = "ROOM" + jid
+        
+        self.room_name = room_name
+        MixerHandle.__init__(self, connection, id, handle_type, room_name)
 
+    @property
+    def room(self):
+        return self._conn.mxit.roster.get_named_room(self.room_name)
 
 class MixerListHandle(MixerHandle):
     def __init__(self, connection, id, list_name):

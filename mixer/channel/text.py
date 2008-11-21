@@ -38,27 +38,16 @@ logger = logging.getLogger('Mixer.TextChannel')
 
 
 class MixerTextChannel(
-        telepathy.server.ChannelTypeText,
-        telepathy.server.ChannelInterfaceGroup,
-        telepathy.server.ChannelInterfaceChatState):
+        telepathy.server.ChannelTypeText):
 
     def __init__(self, connection, handle):
         self._recv_id = 0
         self.contact_handle = handle
         self.con = connection
 
-        telepathy.server.ChannelTypeText.__init__(self, connection, None)
-        telepathy.server.ChannelInterfaceGroup.__init__(self)
-        telepathy.server.ChannelInterfaceChatState.__init__(self)
+        telepathy.server.ChannelTypeText.__init__(self, connection, handle)
         
 
-        self.GroupFlagsChanged(telepathy.CHANNEL_GROUP_FLAG_CAN_ADD, 0)
-        self.__add_initial_participants()
-
-    @logexceptions(logger)
-    def SetChatState(self, state):
-        handle = MixerHandleFactory(self.con, 'self')
-        self.ChatStateChanged(handle, state)
 
     @logexceptions(logger)
     def Send(self, message_type, text):
@@ -71,20 +60,10 @@ class MixerTextChannel(
     def Close(self):
         telepathy.server.ChannelTypeText.Close(self)
         self.remove_from_connection()
-
-    @async
-    def __add_initial_participants(self):
-        self_handle = self.con.handle_for_buddy(self.con.mxit.roster.self_buddy)
-        handles = [self.contact_handle, self_handle]
-        
-        self.MembersChanged('', handles, [], [], [],
-                0, telepathy.CHANNEL_GROUP_CHANGE_REASON_NONE)
         
     def message_received(self, message):
         id = self._recv_id
         timestamp = int(time.time())
         type = telepathy.CHANNEL_TEXT_MESSAGE_TYPE_NORMAL
-        if isinstance(message, RoomMessage):
-            self.Received(id, timestamp, self.contact_handle, type, 0, "%s: %s" % (message.sender.name, message.room_message))
-        else:
-            self.Received(id, timestamp, self.contact_handle, type, 0, message.message)
+        
+        self.Received(id, timestamp, self.contact_handle, type, 0, message.message)

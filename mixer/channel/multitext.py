@@ -74,25 +74,12 @@ class MixerRoomChannel(
     
     @logexceptions(logger)
     def Send(self, message_type, text):
-        if text.startswith('/invite'):
-            name = text.split()[1]
-            roster = self.con.mxit.roster
-            if roster.has_buddy(name):
-                buddy = roster.get_buddy(name)
-            else:
-                buddy = roster.find_buddy(name)
-            if buddy:
-                logger.info("Inviting %s to room" % buddy.name)
-                self.con.mxit.invite_buddies_room(self.handle.room, [buddy])
-            else:
-                logger.error("Cannot find buddy %s" % name)
-            return
-            
         if self.handle.room:
-            #logger.info("Sending %s to %s, %s" % (text, self.contact_handle.jid, message_type))
             if message_type == telepathy.CHANNEL_TEXT_MESSAGE_TYPE_NORMAL:
-                #self.con.mxit.message(self.contact_handle.contact, text)
-                self.con.mxit.message(self.handle.room, text)
+                if text.startswith('/'):
+                    self.con.commands.handle_command(self, text)
+                else:
+                    self.con.mxit.message(self.handle.room, text)
             else:
                 raise telepathy.NotImplemented("Unhandled message type")
         else:
@@ -117,13 +104,12 @@ class MixerRoomChannel(
         else:
             pass
             # Is this the best place to create the room?
-            self.con.mxit.create_room(self.handle.name)
+            #self.con.mxit.create_room(self.handle.name)
         
         
-    def message_received(self, contact_handle, message):
+    def message_received(self, contact_handle, message, type=telepathy.CHANNEL_TEXT_MESSAGE_TYPE_NORMAL):
         id = self._recv_id
         timestamp = int(time.time())
-        type = telepathy.CHANNEL_TEXT_MESSAGE_TYPE_NORMAL
         
         self.Received(id, timestamp, contact_handle, type, 0, message.message)
 

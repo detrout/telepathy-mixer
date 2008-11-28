@@ -30,11 +30,14 @@ import telepathy
 from mxit.connection import MxitConnection
 from mxit.handles import Status, StatusChangeReason, BuddyType, Message
 
+from mixer.listener import MixerListener
 from mixer.presence import MixerPresence
 from mixer.aliasing import MixerAliasing
+from mixer.commands import CommandHandler
 from mixer.handle import MixerHandleFactory
 from mixer.channel.contact_list import MixerListChannel
 from mixer.channel.group import MixerGroupChannel
+from mixer.channel.multitext import MixerRoomChannel
 from mixer.channel_manager import ChannelManager
 from mixer.util.decorator import async, logexceptions
 
@@ -44,149 +47,6 @@ logger = logging.getLogger('Mixer.Connection')
 
 
 
-class MixerListener:
-    def __init__(self, mixer_con):
-        self.con = mixer_con
-        
-    def message_received(self, message):
-        sender = message.buddy
-        if sender.is_room():
-            logger.info("Ignoring room message: %s" % message)
-        else:
-            handle = MixerHandleFactory(self.con, 'contact', sender.jid)
-            channel = self.con._channel_manager.channel_for_text(handle)
-            channel.message_received(message)
-        
-    def room_message_received(self, room, message):
-        channel = self.con.get_room_channel(room)
-        contact_handle = self.con.handle_for_buddy(message.buddy)
-        channel.message_received(contact_handle, message)
-    
-    def room_buddies_joined(self, room, buddies):
-        logger.info("These buddies joined: %s" % [buddy.name for buddy in buddies])
-        channel = self.con.get_room_channel(room)
-        channel.buddies_joined(buddies)
-        
-    def room_buddies_left(self, room, buddies):
-        logger.info("These buddies left: %s" % [buddy.name for buddy in buddies])
-        channel = self.con.get_room_channel(room)
-        channel.buddies_left(buddies)
-    
-    def room_added(self, room):
-        channel = self.con.get_room_channel(room)
-        logger.info('Room name: %s' % room.name)
-        channel._set(name=room.name)
-        
-    def room_updated(self, room, **attrs):
-        channel = self.con.get_room_channel(room)
-        logger.info('Room name: %s' % room.name)
-        if 'name' in attrs:
-            channel._set(name=room.name)
-            
-    def room_create_error(self, name, response):
-        handle = MixerHandleFactory(self.con, 'room', name)
-        channel = self.con._channel_manager.channel_for_room(handle)
-        message = Message(self.con.mxit.roster.info_buddy, response.message)
-        channel.message_received(self.con.handle_for_buddy(self.con.mxit.roster.info_buddy), message)
-        
-    
-    def message_sent(self, message):
-        recipient = message.buddy
-        if recipient.type == BuddyType.ROOM:
-            channel = self.con.get_room_channel(recipient)
-        else:
-            handle = self.con.handle_for_buddy(recipient)
-            #handle = MixerHandleFactory(self.con, 'contact', recipient.jid)
-            channel = self.con._channel_manager.channel_for_text(handle)
-            
-        channel.Sent(int(time.time()), telepathy.CHANNEL_TEXT_MESSAGE_TYPE_NORMAL, message.message)
-        
-    
-    def message_error(self, message, error="Message cannot be delivered"):        
-        recipient = message.buddy
-        if recipient.type == BuddyType.ROOM:
-            channel = self.con.get_room_channel(recipient)
-        else:
-            handle = self.con.handle_for_buddy(recipient)
-            #handle = MixerHandleFactory(self.con, 'contact', recipient.jid)
-            channel = self.con._channel_manager.channel_for_text(handle)
-        
-        ts = int(time.time())
-        channel.SendError(ts, telepathy.CHANNEL_TEXT_SEND_ERROR_UNKNOWN, telepathy.CHANNEL_TEXT_MESSAGE_TYPE_NORMAL, message.message)
-        
-        
-    def presence_changed(self, presence):
-        self.con.presence_received(self.con.mxit.roster.self_buddy)
-        #for channel in map(self.con.get_list_channel, ['subscribe', 'publish']):
-        #    channel.check_buddy(buddy)
-    
-    def mood_changed(self, mood):
-        self.con.presence_received(self.con.mxit.roster.self_buddy)
-    
-    def buddy_updated(self, buddy, **attrs):
-        logger.info("Buddy updated: %r" % (attrs))
-        if 'presence' in attrs:
-            self.con.presence_received(buddy)
-            for channel in map(self.con.get_list_channel, ['subscribe', 'publish']):
-                channel.check_buddy(buddy)
-                
-        if 'name' in attrs:
-            self.con._contact_alias_changed(buddy)
-        if 'group' in attrs:
-            self._add_to_group(buddy)
-    
-    def buddy_added(self, buddy):
-        #logger.info("Buddy added|%s" % buddy)
-        for channel in map(self.con.get_list_channel, ['subscribe', 'publish']):
-            channel.buddy_added(buddy)
-            
-        self._add_to_group(buddy)
-        self.con._contact_alias_changed(buddy)
-                    
-    def buddy_removed(self, buddy):
-        for handle, channel in self.con._channel_manager._list_channels.items():
-            if isinstance(channel, MixerListChannel):
-                channel.buddy_removed(buddy)
-        
-        
-    def status_changed(self, status, reason):
-        reason_map = {
-            StatusChangeReason.UNKNOWN : telepathy.CONNECTION_STATUS_REASON_NONE_SPECIFIED,
-            StatusChangeReason.REQUESTED : telepathy.CONNECTION_STATUS_REASON_REQUESTED,
-            StatusChangeReason.NETWORK_ERROR : telepathy.CONNECTION_STATUS_REASON_NETWORK_ERROR,
-            StatusChangeReason.TIMEOUT : telepathy.CONNECTION_STATUS_REASON_NETWORK_ERROR,
-            StatusChangeReason.AUTH_FAILED : telepathy.CONNECTION_STATUS_REASON_AUTHENTICATION_FAILED,
-            StatusChangeReason.ERROR : telepathy.CONNECTION_STATUS_REASON_NETWORK_ERROR,
-        }
-        tel_reason = reason_map[reason]
-        if status == Status.CONNECTING:
-            self.con.StatusChanged(telepathy.CONNECTION_STATUS_CONNECTING, tel_reason)
-        elif status == Status.AUTHENTICATING:
-            pass
-        elif status == Status.ACTIVE:
-            self.con.StatusChanged(telepathy.CONNECTION_STATUS_CONNECTED, tel_reason)
-            self.con.init_channels()
-        elif status == Status.DISCONNECTED:
-            self.con.StatusChanged(telepathy.CONNECTION_STATUS_DISCONNECTED, tel_reason)
-            self.con._channel_manager.close()
-            self.con._advertise_disconnected()
-                
-        
-    def error(self, message, exception):
-        import traceback
-        logger.error("Random exception occured: %s | %s" % (message, traceback.format_exc()))
-        
-    def _add_to_group(self, buddy):
-        channel = self.con.group_for_buddy(buddy)
-        buddy_handle = self.con.handle_for_buddy(buddy)
-        
-        for ch in self.con.get_group_channels():
-            if ch != channel:
-                ch.buddy_removed(buddy)
-                
-        if channel is not None:
-            #channel.add_contacts([buddy_handle])
-            channel.buddy_added(buddy)
         
 class MixerConnection(telepathy.server.Connection, MixerPresence, MixerAliasing):
 
@@ -232,10 +92,8 @@ class MixerConnection(telepathy.server.Connection, MixerPresence, MixerAliasing)
         con.password = parameters['password']
         con.client_id = parameters['client_id']
         self.mxit = con
+        self.commands = CommandHandler(self)
         
-        self.__disconnect_reason = telepathy.CONNECTION_STATUS_REASON_NONE_SPECIFIED
-        self._initial_presence = None
-        self._initial_personal_message = None
 
         logger.info("Connection to the account %s created" % account)
         
@@ -347,7 +205,11 @@ class MixerConnection(telepathy.server.Connection, MixerPresence, MixerAliasing)
     def get_list_channel(self, name):
         handle = MixerHandleFactory(self, 'list', name)
         return self._channel_manager.channel_for_list(handle)
-        
+    
+    def get_buddy_channel(self, buddy):    
+        handle = self.handle_for_buddy(buddy)
+        return self._channel_manager.channel_for_text(handle)
+    
     def get_room_channel(self, room):
         handle = MixerHandleFactory(self, 'room', room.jid)
         return self._channel_manager.channel_for_room(handle)
@@ -361,4 +223,20 @@ class MixerConnection(telepathy.server.Connection, MixerPresence, MixerAliasing)
             
     def _advertise_disconnected(self):
         self._manager.disconnected(self)
-            
+           
+    def info(self, message, channel=None):
+        info = self.mxit.roster.info_buddy
+        if not channel:
+            channel = self.get_buddy_channel(info)
+        
+        msg = Message(info, message)
+        if isinstance(channel, MixerRoomChannel):
+            handle = self.handle_for_buddy(info)
+            channel.message_received(handle, msg, type=telepathy.CHANNEL_TEXT_MESSAGE_TYPE_NOTICE)
+        else:
+            channel.message_received(msg, type=telepathy.CHANNEL_TEXT_MESSAGE_TYPE_NOTICE)
+        
+        
+    def notify_error(self, message, channel=None): 
+        self.info(message, channel)
+        

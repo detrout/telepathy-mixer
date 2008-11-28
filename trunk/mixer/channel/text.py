@@ -54,9 +54,11 @@ class MixerTextChannel(
         contact = self.contact_handle.contact
         if contact:
             #TODO: sending to self
-            logger.info("Sending %s to %s, %s" % (text, contact, message_type))
             if message_type == telepathy.CHANNEL_TEXT_MESSAGE_TYPE_NORMAL:
-                self.con.mxit.message(self.contact_handle.contact, text)
+                if text.startswith('/'):
+                    self.con.commands.handle_command(self, text)
+                else:
+                    self.con.mxit.message(self.contact_handle.contact, text)
             else:
                 raise telepathy.NotImplemented("Unhandled message type")
         else:
@@ -66,9 +68,8 @@ class MixerTextChannel(
         telepathy.server.ChannelTypeText.Close(self)
         self.remove_from_connection()
         
-    def message_received(self, message):
+    def message_received(self, message, type=telepathy.CHANNEL_TEXT_MESSAGE_TYPE_NORMAL):
         id = self._recv_id
         timestamp = int(time.time())
-        type = telepathy.CHANNEL_TEXT_MESSAGE_TYPE_NORMAL
-        
+                
         self.Received(id, timestamp, self.contact_handle, type, 0, message.message)

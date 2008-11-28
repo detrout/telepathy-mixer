@@ -69,8 +69,6 @@ class MixerRoomChannel(
             contact = handle.contact
             
             logger.info("Inviting %s" % contact.name)
-            #group = self._handle.group
-            #self.con.mxit.update_buddy(contact, group=group)
                 
     
     
@@ -98,7 +96,7 @@ class MixerRoomChannel(
             else:
                 raise telepathy.NotImplemented("Unhandled message type")
         else:
-            raise telepathy.NotAvailable("Room not created yet")
+            raise telepathy.NotAvailable("Room does not exist")
 
         
     @logexceptions(logger)
@@ -115,8 +113,9 @@ class MixerRoomChannel(
     @async
     def __add_initial_participants(self):
         if self.handle.room:
-            self.buddies_joined([self.GetSelfHandle()] + list(self.handle.room.buddies))
+            self.buddies_joined([self.con.mxit.roster.self_buddy] + list(self.handle.room.buddies))
         else:
+            pass
             # Is this the best place to create the room?
             self.con.mxit.create_room(self.handle.name)
         

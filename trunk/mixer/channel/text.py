@@ -51,12 +51,17 @@ class MixerTextChannel(
 
     @logexceptions(logger)
     def Send(self, message_type, text):
-        logger.info("Sending %s to %s, %s" % (text, self.contact_handle.jid, message_type))
-        if message_type == telepathy.CHANNEL_TEXT_MESSAGE_TYPE_NORMAL:
-            self.con.mxit.message(self.contact_handle.contact, text)
+        contact = self.contact_handle.contact
+        if contact:
+            #TODO: sending to self
+            logger.info("Sending %s to %s, %s" % (text, contact, message_type))
+            if message_type == telepathy.CHANNEL_TEXT_MESSAGE_TYPE_NORMAL:
+                self.con.mxit.message(self.contact_handle.contact, text)
+            else:
+                raise telepathy.NotImplemented("Unhandled message type")
         else:
-            raise telepathy.NotImplemented("Unhandled message type")
-
+            raise telepathy.PermissionDenied("Contact does not exist")
+        
     def Close(self):
         telepathy.server.ChannelTypeText.Close(self)
         self.remove_from_connection()

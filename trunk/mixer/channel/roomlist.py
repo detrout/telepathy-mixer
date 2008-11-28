@@ -82,7 +82,7 @@ class MixerRoomListChannel(
     @logexceptions(logger)
     def ListRooms(self):
         logger.info('ListRooms')
-        rooms = self.con.mxit.roster.rooms.values()
+        rooms = self.con.mxit.roster.all_rooms()
         
         self.rooms_received(rooms)
     

@@ -65,7 +65,7 @@ class MixerGroupChannel(MixerListChannel):
             handle = self.con.handle(telepathy.HANDLE_TYPE_CONTACT, contact_handle_id)
             contact = handle.contact
             group = self._handle.group
-            root_group = self.con.mxit.roster.root_group()
+            root_group = self.con.mxit.roster.root_group
             if contact.group == group:
                 self.con.mxit.update_buddy(contact, group=root_group)
               

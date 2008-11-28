@@ -1,10 +1,16 @@
+telepathy-mixer-0.2.0
+=====================
+  * Experimental support for MultiMX rooms
+    o A new room can be created with Room -> Join New in Empathy
+    o If you are invited to a room, you will in no way be notified, until you receive a message in that room
+    o Multiple rooms with the same name will cause problems
+    
 telepathy-mixer-0.1.0
 =====================
 
 Initial release
   * Supported features
     o Sending & receiving messages
-    o Sending & receiving presence
     o Receiving moods
     o Renaming buddies
     o Moving buddies between groups

@@ -73,7 +73,7 @@ class MixerPresenceMapping(object):
             Presence.XA: XA,
             Presence.CHAT: AVAILABLE,
             Presence.OFFLINE: OFFLINE,
-            Presence.NONE: UNKNOWN,
+            #Presence.NONE: UNKNOWN,
             Presence.PENDING: UNKNOWN,
             }
 
@@ -142,6 +142,8 @@ class MixerPresence(telepathy.server.ConnectionInterfacePresence):
             handle = self.handle(telepathy.HANDLE_TYPE_CONTACT, handle_id)
             
             contact = handle.contact
+            if not contact:
+                logger.error("%s not found" % handle.jid)
             mood = contact.mood
 
             if contact is not None:
@@ -159,7 +161,7 @@ class MixerPresence(telepathy.server.ConnectionInterfacePresence):
         return presences
 
     def presence_received(self, buddy):
-        handle = MixerHandleFactory(self, 'contact', buddy.jid)
+        handle = self.handle_for_buddy(buddy)
         self._presence_changed(handle)
         
     @async

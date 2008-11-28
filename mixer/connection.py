@@ -50,8 +50,8 @@ class MixerListener:
         
     def message_received(self, message):
         sender = message.buddy
-        if sender.type == BuddyType.ROOM:
-            logger.info("Ignoring message: %s" % message)
+        if sender.is_room():
+            logger.info("Ignoring room message: %s" % message)
         else:
             handle = MixerHandleFactory(self.con, 'contact', sender.jid)
             channel = self.con._channel_manager.channel_for_text(handle)
@@ -74,10 +74,12 @@ class MixerListener:
     
     def room_added(self, room):
         channel = self.con.get_room_channel(room)
+        logger.info('Room name: %s' % room.name)
         channel._set(name=room.name)
         
     def room_updated(self, room, **attrs):
         channel = self.con.get_room_channel(room)
+        logger.info('Room name: %s' % room.name)
         if 'name' in attrs:
             channel._set(name=room.name)
             
@@ -93,7 +95,8 @@ class MixerListener:
         if recipient.type == BuddyType.ROOM:
             channel = self.con.get_room_channel(recipient)
         else:
-            handle = MixerHandleFactory(self.con, 'contact', recipient.jid)
+            handle = self.con.handle_for_buddy(recipient)
+            #handle = MixerHandleFactory(self.con, 'contact', recipient.jid)
             channel = self.con._channel_manager.channel_for_text(handle)
             
         channel.Sent(int(time.time()), telepathy.CHANNEL_TEXT_MESSAGE_TYPE_NORMAL, message.message)
@@ -104,7 +107,8 @@ class MixerListener:
         if recipient.type == BuddyType.ROOM:
             channel = self.con.get_room_channel(recipient)
         else:
-            handle = MixerHandleFactory(self.con, 'contact', recipient.jid)
+            handle = self.con.handle_for_buddy(recipient)
+            #handle = MixerHandleFactory(self.con, 'contact', recipient.jid)
             channel = self.con._channel_manager.channel_for_text(handle)
         
         ts = int(time.time())
@@ -112,10 +116,12 @@ class MixerListener:
         
         
     def presence_changed(self, presence):
-        pass
+        self.con.presence_received(self.con.mxit.roster.self_buddy)
+        #for channel in map(self.con.get_list_channel, ['subscribe', 'publish']):
+        #    channel.check_buddy(buddy)
     
     def mood_changed(self, mood):
-        pass
+        self.con.presence_received(self.con.mxit.roster.self_buddy)
     
     def buddy_updated(self, buddy, **attrs):
         logger.info("Buddy updated: %r" % (attrs))
@@ -329,6 +335,8 @@ class MixerConnection(telepathy.server.Connection, MixerPresence, MixerAliasing)
         
         
     def handle_for_buddy(self, buddy):
+        if buddy == self.mxit.roster.self_buddy:
+            return MixerHandleFactory(self, 'self')
         return MixerHandleFactory(self, 'contact', buddy.jid)
     
     def init_channels(self):
@@ -341,7 +349,7 @@ class MixerConnection(telepathy.server.Connection, MixerPresence, MixerAliasing)
         return self._channel_manager.channel_for_list(handle)
         
     def get_room_channel(self, room):
-        handle = MixerHandleFactory(self, 'room', room.name)
+        handle = MixerHandleFactory(self, 'room', room.jid)
         return self._channel_manager.channel_for_room(handle)
     
     def get_group_channels(self):

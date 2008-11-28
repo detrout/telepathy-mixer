@@ -21,6 +21,7 @@
 
 import logging
 import weakref
+import exceptions
 
 import telepathy
 
@@ -93,6 +94,10 @@ class MixerSelfHandle(MixerHandle):
         MixerHandle.__init__(self, connection, id, handle_type, handle_name)
 
     @property
+    def jid(self):
+        return self.contact.jid
+    
+    @property
     def contact(self):
         return self._conn.mxit.roster.self_buddy
     
@@ -108,6 +113,8 @@ class MixerNoneHandle(MixerHandle):
     
 class MixerContactHandle(MixerHandle):
     def __init__(self, connection, id, jid):
+        if jid == '':
+            raise exceptions.Exception('No jid for contact')
         handle_type = telepathy.HANDLE_TYPE_CONTACT
         handle_name = jid
         self.jid = jid
@@ -120,19 +127,19 @@ class MixerContactHandle(MixerHandle):
         return self._conn.mxit.roster.get_buddy(self.jid)
     
 class MixerRoomHandle(MixerHandle):
-    def __init__(self, connection, id, room_name):
+    def __init__(self, connection, id, jid):
         
         handle_type = telepathy.HANDLE_TYPE_ROOM
         #if jid.startswith('ROOM'):
         #    jid = jid[4:]
         #handle_name = "ROOM" + jid
         
-        self.room_name = room_name
-        MixerHandle.__init__(self, connection, id, handle_type, room_name)
+        self.jid = jid
+        MixerHandle.__init__(self, connection, id, handle_type, jid)
 
     @property
     def room(self):
-        return self._conn.mxit.roster.get_named_room(self.room_name)
+        return self._conn.mxit.roster.get_room(self.jid)
 
 class MixerListHandle(MixerHandle):
     def __init__(self, connection, id, list_name):

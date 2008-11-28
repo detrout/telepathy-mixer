@@ -80,11 +80,10 @@ class MixerListChannel(
         local_pending = set()
         remote_pending = set()
         
-        for jid, contact in connection.mxit.roster.buddies.items():
+        for contact in connection.mxit.roster.all_buddies():
             ad, lp, rp = self._filter_contact(contact)
             if ad or lp or rp:
-                handle = MixerHandleFactory(self.con, 'contact',
-                        contact.jid)
+                handle = MixerHandleFactory(self.con, 'contact', contact.jid)
                 if ad: added.add(handle)
                 if lp: local_pending.add(handle)
                 if rp: remote_pending.add(handle)
@@ -183,7 +182,7 @@ class MixerSubscribeListChannel(MixerListChannel):
             self.buddy_removed(contact)
 
     def _filter_contact(self, contact):
-        return (contact.is_listed(), False, False)
+        return (True, False, False)
 
     # pymsn.event.ContactEventInterface
     def on_contact_memberships_changed(self, contact):
@@ -228,7 +227,7 @@ class MixerPublishListChannel(MixerListChannel):
     def GetLocalPendingMembersWithInfo(self):
         result = []
         
-        for jid, contact in self.con.mxit.roster.buddies.items():
+        for contact in self.con.mxit.roster.all_buddies():
             if contact.presence != Presence.PENDING:
                 continue
             

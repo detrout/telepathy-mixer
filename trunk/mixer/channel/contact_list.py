@@ -164,10 +164,14 @@ class MixerSubscribeListChannel(MixerListChannel):
         for handle_id in contacts:
             handle = self._conn.handle(telepathy.HANDLE_TYPE_CONTACT, handle_id)
             contact = handle.contact
-            logger.info("Contact: %r" % contact)
-            if not contact.is_subscribed():
-                logger.info("inviting %s" % contact.jid)
-                self._conn.mxit.invite(contact.jid, contact.name, contact.group)
+            
+            if contact:
+                logger.info("Contact: %r" % contact)
+                if not contact.is_subscribed():
+                    logger.info("inviting %s" % contact.jid)
+                    self._conn.mxit.invite(contact.jid, contact.name, contact.group)
+            else:
+                self._conn.mxit.invite(handle.jid, handle.jid, self._conn.mxit.roster.root_group)
             
     
     @logexceptions(logger)
@@ -177,12 +181,16 @@ class MixerSubscribeListChannel(MixerListChannel):
         for h in contacts:
             handle = self._conn.handle(telepathy.HANDLE_TYPE_CONTACT, h)
             contact = handle.contact
-            logger.info("Removing %s" % contact)
-            self._conn.mxit.remove_buddy(contact)
-            self.buddy_removed(contact)
+            if contact:
+                logger.info("Removing %s" % contact)
+                self._conn.mxit.remove_buddy(contact)
+            #self.buddy_removed(contact)
 
     def _filter_contact(self, contact):
-        return (True, False, False)
+        if contact:
+            return (True, False, False)
+        else:
+            return (False, False, False)
 
     # pymsn.event.ContactEventInterface
     def on_contact_memberships_changed(self, contact):
@@ -240,7 +248,10 @@ class MixerPublishListChannel(MixerListChannel):
             
 
     def _filter_contact(self, contact):
-        return (contact.is_subscribed(), contact.presence == Presence.PENDING, False)
+        if contact:
+            return (contact.is_subscribed(), contact.presence == Presence.PENDING, False)
+        else:
+            return (False, False, False)
 
     # pymsn.event.ContactEventInterface
     def on_contact_memberships_changed(self, contact):

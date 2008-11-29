@@ -57,7 +57,7 @@ class MixerRoomChannel(
         self.GroupFlagsChanged(telepathy.CHANNEL_GROUP_FLAG_CAN_ADD | 2048, 0)
         
         
-        self.__add_initial_participants()
+        #self.__add_initial_participants()
         
 
     
@@ -92,17 +92,30 @@ class MixerRoomChannel(
         telepathy.server.ChannelTypeText.Close(self)
         self.remove_from_connection()
 
+    def close(self):
+        #self.buddies_left(self._get_buddies())
+        logger.info("closing with members: %r" % (self._members))
+        #self.MembersChanged('', [], self._members, [], [], 0, telepathy.CHANNEL_GROUP_CHANGE_REASON_NONE)
+        self.buddies_left([self.con.mxit.roster.self_buddy])
+        #self.Closed()
+        #self.remove_from_connection()
 
+    def open(self):
+        self.__add_initial_participants()
+        
+    def _get_buddies(self):
+        if self.handle.room:
+            return [self.con.mxit.roster.self_buddy] + list(self.handle.room.buddies)
+        else:
+            return [self.con.mxit.roster.self_buddy]
+    
     @logexceptions(logger)
     def GetSelfHandle(self):
         return self.con.handle_for_buddy(self.con.mxit.roster.self_buddy)
     
     @async
     def __add_initial_participants(self):
-        if self.handle.room:
-            self.buddies_joined([self.con.mxit.roster.self_buddy] + list(self.handle.room.buddies))
-        else:
-            pass
+        self.buddies_joined(self._get_buddies())
             # Is this the best place to create the room?
             #self.con.mxit.create_room(self.handle.name)
         
@@ -114,8 +127,9 @@ class MixerRoomChannel(
         self.Received(id, timestamp, contact_handle, type, 0, message.message)
 
     def buddies_joined(self, buddies):
+        logger.info("joined: %s" % (buddies))
         handles = map(self.con.handle_for_buddy, buddies)
-                
+        
         self.MembersChanged('', handles, [], [], [],
                 0, telepathy.CHANNEL_GROUP_CHANGE_REASON_NONE)
         

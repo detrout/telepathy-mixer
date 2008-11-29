@@ -101,8 +101,6 @@ class MixerConnection(telepathy.server.Connection, MixerPresence, MixerAliasing)
     
    
     def handle(self, handle_type, handle_id):
-        if handle_type == 0 and handle_id != 0:
-            raise "exceptions"
         if handle_type == 0 and handle_id == 0:
             return MixerHandleFactory(self, 'none')    #HACK
         self.check_handle(handle_type, handle_id)
@@ -112,9 +110,11 @@ class MixerConnection(telepathy.server.Connection, MixerPresence, MixerAliasing)
     def Connect(self):
         logger.info("Connecting")       
         #print self._account
-
-        self.mxit.connect()
-        logger.info("done")
+        if self.mxit.status == Status.DISCONNECTED:
+            self.mxit.connect()
+            logger.info("done")
+        else:
+            logger.error("Already connected!")
         #self.mxit.start()
         #self.start()
         
@@ -138,13 +138,13 @@ class MixerConnection(telepathy.server.Connection, MixerPresence, MixerAliasing)
                 handle = MixerHandleFactory(self, 'list', name)
             elif handle_type == telepathy.HANDLE_TYPE_GROUP:
                 handle = MixerHandleFactory(self, 'group', name)
-                logger.info("handle for group: %s" % name)
+                #logger.info("handle for group: %s" % name)
             elif handle_type == telepathy.HANDLE_TYPE_ROOM:
                 handle = MixerHandleFactory(self, 'room', name)
-                logger.info("handle for room: %s" % name)
+                #logger.info("handle for room: %s" % name)
             elif handle_type == telepathy.HANDLE_TYPE_NONE:
                 handle = MixerHandleFactory(self, 'none')
-                logger.info("handle none")
+                #logger.info("handle none")
             else:
                 raise telepathy.NotAvailable('Handle type unsupported %d' % handle_type)
             handles.append(handle.id)
@@ -155,11 +155,11 @@ class MixerConnection(telepathy.server.Connection, MixerPresence, MixerAliasing)
     def RequestChannel(self, type, handle_type, handle_id, suppress_handler):    
         self.check_connected()
         
-        logger.info("requestion channel of type %s for handle %s, %s" % (type, handle_type, handle_id))
+        #logger.info("requestion channel of type %s for handle %s, %s" % (type, handle_type, handle_id))
         channel = None
         channel_manager = self._channel_manager
         handle = self.handle(handle_type, handle_id)
-        logger.info("handle: %r" % handle)
+        #logger.info("handle: %r" % handle)
         if type == telepathy.CHANNEL_TYPE_CONTACT_LIST:
             channel = channel_manager.channel_for_list(handle, suppress_handler)
         elif type == telepathy.CHANNEL_TYPE_TEXT:

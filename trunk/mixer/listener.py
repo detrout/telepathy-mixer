@@ -75,6 +75,7 @@ class MixerListener:
         channel = self.con.get_room_channel(room)
         logger.info('Room name: %s' % room.name)
         channel._set(name=room.name)
+        channel.open()
         
         if message:
             self.con.info(message, channel)
@@ -88,7 +89,8 @@ class MixerListener:
             channel._set(name=room.name)
             
     def room_removed(self, room):
-        pass
+        channel = self.con.get_room_channel(room)
+        channel.close()
     
     def room_create_error(self, name, response):
         #handle = MixerHandleFactory(self.con, 'room', name)
@@ -125,7 +127,7 @@ class MixerListener:
         self.con.presence_received(self.con.mxit.roster.self_buddy)
     
     def buddy_updated(self, buddy, **attrs):
-        logger.info("Buddy updated: %r" % (attrs))
+        #logger.info("Buddy updated: %r" % (attrs))
         if 'presence' in attrs:
             self.con.presence_received(buddy)
             for channel in map(self.con.get_list_channel, ['subscribe', 'publish']):
@@ -136,6 +138,15 @@ class MixerListener:
         if 'group' in attrs:
             self._add_to_group(buddy)
     
+    def profile_updated(self, profile, **attrs):
+        logger.info("Profile updated: %r" % (attrs))
+        
+        if 'name' in attrs:
+            self.con._contact_alias_changed(profile)
+            
+        #if 'group' in attrs:
+        #    self._add_to_group(buddy)
+            
     def buddy_added(self, buddy):
         #logger.info("Buddy added|%s" % buddy)
         for channel in map(self.con.get_list_channel, ['subscribe', 'publish']):
@@ -176,6 +187,7 @@ class MixerListener:
     def error(self, message, exception):
         import traceback
         logger.error("Random exception occured: %s | %s" % (message, traceback.format_exc()))
+        
         
     def _add_to_group(self, buddy):
         channel = self.con.group_for_buddy(buddy)

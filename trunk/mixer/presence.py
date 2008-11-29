@@ -142,22 +142,24 @@ class MixerPresence(telepathy.server.ConnectionInterfacePresence):
             handle = self.handle(telepathy.HANDLE_TYPE_CONTACT, handle_id)
             
             contact = handle.contact
-            if not contact:
-                logger.error("%s not found" % handle.jid)
-            mood = contact.mood
-
-            if contact is not None:
-                presence = MixerPresenceMapping.to_telepathy[contact.presence]
-                #personal_message = unicode(contact.personal_message, "utf-8")
+            if contact:
+                mood = contact.mood
+    
+                if contact is not None:
+                    presence = MixerPresenceMapping.to_telepathy[contact.presence]
+                    #personal_message = unicode(contact.personal_message, "utf-8")
+                else:
+                    presence = MixerPresenceMapping.OFFLINE
+                    #personal_message = u""
+    
+                arguments = {}
+                if mood != Mood.NONE:
+                    arguments = {'message' : mood.text}
+    
+                presences[handle] = (0, {presence : arguments}) # TODO: Timestamp
             else:
-                presence = MixerPresenceMapping.OFFLINE
-                #personal_message = u""
-
-            arguments = {}
-            if mood != Mood.NONE:
-                arguments = {'message' : mood.text}
-
-            presences[handle] = (0, {presence : arguments}) # TODO: Timestamp
+                presences[handle] = (0, {MixerPresenceMapping.OFFLINE : {}})
+                
         return presences
 
     def presence_received(self, buddy):
@@ -167,13 +169,14 @@ class MixerPresence(telepathy.server.ConnectionInterfacePresence):
     @async
     def _presence_changed(self, handle):
         buddy = handle.contact
-        presence = buddy.presence
-        mood = buddy.mood
-        presence = MixerPresenceMapping.to_telepathy[presence]
-        
-        arguments = {}
-        
-        if mood != Mood.NONE:
-            arguments = {'message' : mood.text}
-
-        self.PresenceUpdate({handle: (int(time.time()), {presence:arguments})})
+        if buddy:
+            presence = buddy.presence
+            mood = buddy.mood
+            presence = MixerPresenceMapping.to_telepathy[presence]
+            
+            arguments = {}
+            
+            if mood != Mood.NONE:
+                arguments = {'message' : mood.text}
+    
+            self.PresenceUpdate({handle: (int(time.time()), {presence:arguments})})

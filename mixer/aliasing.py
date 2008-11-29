@@ -41,11 +41,16 @@ class MixerAliasing(telepathy.server.ConnectionInterfaceAliasing):
         for handle_id in contacts:
             handle = self.handle(telepathy.HANDLE_TYPE_CONTACT, handle_id)
             contact = handle.contact
-            alias = contact.name
-            if isinstance(alias, unicode):
-                result.append(alias)
+            if contact:
+                alias = contact.name
+                if isinstance(alias, unicode):
+                    result.append(alias)
+                elif alias is None:
+                    result.append(u'None')
+                else:
+                    result.append(unicode(alias, 'utf-8'))
             else:
-                result.append(unicode(alias, 'utf-8'))
+                result.append(handle.jid)
         return result
 
     @logexceptions(logger)
@@ -55,19 +60,21 @@ class MixerAliasing(telepathy.server.ConnectionInterfaceAliasing):
             if handle != MixerHandleFactory(self, 'self'):
                 logger.info("Renaming %r to %s" % (handle, alias))
                 buddy = handle.contact
-                
-                self.mxit.update_buddy(buddy, name=alias)
+                if buddy:
+                    self.mxit.update_buddy(buddy, name=alias)
+                else:
+                    pass    #TODO
                
             else:
-                logger.info("Self alias changed to '%s' - not implemented yet" % alias)
-                #self.AliasesChanged(((MixerHandleFactory(self, 'self'), alias), ))"""
+                logger.info("Self alias changed to '%s'" % alias)
+                self.mxit.update_profile(name=alias)
        
     @async
     def _contact_alias_changed(self, contact):
-        handle = MixerHandleFactory(self, 'contact', contact.jid)
+        handle = self.handle_for_buddy(contact)
 
         alias = contact.name
-        alias = unicode(alias, 'utf-8')
+        #alias = unicode(alias, 'utf-8')
         #logger.info("Contact %r alias changed to '%s'" % (handle, alias))
         self.AliasesChanged(((handle, alias), ))
 

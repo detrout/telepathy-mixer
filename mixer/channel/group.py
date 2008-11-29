@@ -81,7 +81,7 @@ class MixerGroupChannel(MixerListChannel):
         
     def Close(self):
         # Groups in MXit are never actually deleted
-        logger.debug("Deleting group %s" % self._handle.name)
+        logger.debug("\"Deleting\" group %s" % self._handle.name)
 
     def _filter_contact(self, contact):
         if contact.group.name == self._handle.name:

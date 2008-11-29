@@ -56,7 +56,8 @@ class MixerHandle(telepathy.server.Handle):
 
     instances = weakref.WeakValueDictionary()
     def __new__(cls, connection, *args):
-        key = (cls, connection._account[0], args)
+        #key = (cls, connection._account[0], args)
+        key = (cls, connection, args)
         if key not in cls.instances.keys():
             instance = object.__new__(cls, connection, *args)
             cls.instances[key] = instance # TRICKY: instances is a weakdict

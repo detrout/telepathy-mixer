@@ -5,7 +5,7 @@ Current version: 0.2.0
 
 = Installation on Ubuntu 8.10 =
 
-From Synaptic Package Manager, install "empathy" and "telepathy-python".
+From Synaptic Package Manager, install "empathy" and "python-telepathy".
 
 From the downloads page, download telepathy-mixer-0.2.0.tar.gz and extract it anywhere.
 
@@ -24,6 +24,23 @@ sudo make install
 
 Now when you run Empathy, you should be able to add an account of type MXit.
 
+= Installation on Ubuntu 8.04 =
+Note: not tested yet, but should work.
+
+In Synaptic, add the following line to third-party sources:
+ `deb http://ppa.launchpad.net/telepathy/ubuntu/ hardy main`
+
+This will give you more recent versions of Empathy, Telepathy and python-telepathy.
+
+Now follow the rest of the instructions as in Ubuntu 8.10.
+
+
+= Other Linux Distributions =
+See the following pages for installing the different components. Once you have Empathy running, all you need is telepathy-python.
+
+ * http://mission-control.sourceforge.net/
+ * http://live.gnome.org/Empathy/Install
+ * http://telepathy.freedesktop.org/wiki/Telepathy%20Python
 
 = Creating an account =
 
@@ -47,4 +64,4 @@ Note that the codes cannot be reused for different accounts.
 
 = Feedback =
 
-This is the first release, and will probably contain many bugs. Please let me know what your experience is.
+This is still in development, and will probably contain many bugs. Please let me know what your experience is. Please ask any questions on the [http://groups.google.com/group/telepathy-mixer mailing list].

@@ -1,15 +1,17 @@
 #summary Installation of Telepathy-Mixer
 #labels Featured,Phase-Deploy
 
+Current version: 0.2.0
+
 = Installation on Ubuntu 8.10 =
 
-From Synaptic Package Manager, install "empathy".
+From Synaptic Package Manager, install "empathy" and "telepathy-python".
 
-From the downloads page, download telepathy-mixer-0.1.0.tar.gz and extract it anywhere.
+From the downloads page, download telepathy-mixer-0.2.0.tar.gz and extract it anywhere.
 
 In a terminal, go the the directory where it was extracted, for example:
 {{{
-cd /home/user/telepathy-mixer-0.1.0/
+cd /home/user/telepathy-mixer-0.2.0/
 }}}
 
 The run:

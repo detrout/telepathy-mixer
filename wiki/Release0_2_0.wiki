@@ -19,7 +19,9 @@ Not all MXit features can be directly implemented using the Empathy interface. F
 For more information on these commands, use /help command
 
 = Known Issues =
+ * Encoding is not done proberly yet - might crash if you use non-ASCII characters.
  * If you are idle for about 40 minutes, the server will stop sending messages, without notifying the client. This seems to be a server-side issue, and also happens with the official client.
+
 
 = Features not supported yet =
  * File transfers
@@ -35,4 +37,4 @@ The release includes a compatible version of pymxit.
 = Compatibility =
 This release is based on version 0.17.x of the [http://telepathy.freedesktop.org/spec.html Telepathy Specification]. This means that recent versions of Empathy and Telepathy, which support this specification, are required.
 
-The version of Empathy included in the Ubuntu Hardy universe repository is known to work, versions in Gutsy not.
+The version of Empathy included in the Ubuntu Intrepid universe repository is known to work, versions in Hardy not - use the versions from `deb http://ppa.launchpad.net/telepathy/ubuntu/ hardy main`.

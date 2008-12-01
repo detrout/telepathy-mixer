@@ -58,39 +58,61 @@ class MixerListener:
         
     def room_message_received(self, room, message):
         channel = self.con.get_room_channel(room)
-        contact_handle = self.con.handle_for_buddy(message.buddy)
-        channel.message_received(contact_handle, message)
+        #contact_handle = self.con.handle_for_buddy(message.buddy)
+        contact_handle = self.con.handle_for_buddy(room)
+        msg = "<%s> %s" % (message.buddy.name, message.message)
+        message.message = msg
+        message.buddy = room
+        channel.message_received(message)
     
     def room_buddies_joined(self, room, buddies):
-        logger.info("These buddies joined: %s" % [buddy.name for buddy in buddies])
+        names = [buddy.name for buddy in buddies]
+        logger.info("These buddies joined: %s" % names)
         channel = self.con.get_room_channel(room)
-        channel.buddies_joined(buddies)
+        if len(names) == 1:
+            msg = "%s has joined" % (','.join(names))
+        else:
+            msg = "%s have joined" % (','.join(names))
+        message = Message(room, msg)
+        channel.message_received(message, type=telepathy.CHANNEL_TEXT_MESSAGE_TYPE_NOTICE)
+        #channel.buddies_joined(buddies)
         
     def room_buddies_left(self, room, buddies):
-        logger.info("These buddies left: %s" % [buddy.name for buddy in buddies])
+        names = [buddy.name for buddy in buddies]
+        logger.info("These buddies left: %s" % names)
         channel = self.con.get_room_channel(room)
-        channel.buddies_left(buddies)
+        if len(names) == 1:
+            msg = "%s has left" % (','.join(names))
+        else:
+            msg = "%s have left" % (','.join(names))
+        message = Message(room, msg)
+        channel.message_received(message, type=telepathy.CHANNEL_TEXT_MESSAGE_TYPE_NOTICE)
+        #channel.buddies_left(buddies)
     
     def room_added(self, room, message=None):
-        channel = self.con.get_room_channel(room)
+        #channel = self.con.get_room_channel(room)
         logger.info('Room name: %s' % room.name)
-        channel._set(name=room.name)
-        channel.open()
+        self.buddy_added(room)
         
-        if message:
-            self.con.info(message, channel)
-        else:
-            self.con.info("Room created", channel)
+        #channel._set(name=room.name)
+        #channel.open()
+        
+#        if message:
+#            self.con.info(message, channel)
+#        else:
+#            self.con.info("Room created", channel)
         
     def room_updated(self, room, **attrs):
-        channel = self.con.get_room_channel(room)
-        logger.info('Room name: %s' % room.name)
-        if 'name' in attrs:
-            channel._set(name=room.name)
+        self.buddy_updated(room, **attrs)
+#        channel = self.con.get_room_channel(room)
+#        logger.info('Room name: %s' % room.name)
+#        if 'name' in attrs:
+#            channel._set(name=room.name)
             
     def room_removed(self, room):
-        channel = self.con.get_room_channel(room)
-        channel.close()
+        self.buddy_removed(room)
+#        channel = self.con.get_room_channel(room)
+#        channel.close()
     
     def room_create_error(self, name, response):
         #handle = MixerHandleFactory(self.con, 'room', name)
@@ -102,9 +124,10 @@ class MixerListener:
         if recipient.type == BuddyType.ROOM:
             channel = self.con.get_room_channel(recipient)
         else:
-            handle = self.con.handle_for_buddy(recipient)
+            channel = self.con.get_buddy_channel(recipient)
+            #handle = self.con.handle_for_buddy(recipient)
             #handle = MixerHandleFactory(self.con, 'contact', recipient.jid)
-            channel = self.con._channel_manager.channel_for_text(handle)
+            #channel = self.con._channel_manager.channel_for_text(handle)
             
         channel.Sent(int(time.time()), telepathy.CHANNEL_TEXT_MESSAGE_TYPE_NORMAL, message.message)
         
@@ -156,7 +179,10 @@ class MixerListener:
             
         self._add_to_group(buddy)
         self.con._contact_alias_changed(buddy)
-                    
+    
+    def room_removed(self, room):
+        self.buddy_removed(room)
+          
     def buddy_removed(self, buddy):
         for handle, channel in self.con._channel_manager._list_channels.items():
             if isinstance(channel, MixerListChannel):

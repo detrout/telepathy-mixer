@@ -80,10 +80,12 @@ class MixerListChannel(
         local_pending = set()
         remote_pending = set()
         
-        for contact in connection.mxit.roster.all_buddies():
+        buddies = list(connection.mxit.roster.all_buddies()) + list(connection.mxit.roster.all_rooms())
+        for contact in buddies:
             ad, lp, rp = self._filter_contact(contact)
             if ad or lp or rp:
-                handle = MixerHandleFactory(self.con, 'contact', contact.jid)
+                #handle = MixerHandleFactory(self.con, 'contact', contact.jid)
+                handle = self.con.handle_for_buddy(contact)
                 if ad: added.add(handle)
                 if lp: local_pending.add(handle)
                 if rp: remote_pending.add(handle)

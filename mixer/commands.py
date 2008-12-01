@@ -39,26 +39,33 @@ class CommandHandler:
     def get_buddy(self, channel, args):
         if isinstance(channel, MixerTextChannel):
             buddy = channel.contact_handle.contact
-            return (buddy, args)
-        
-        buddy = self.con.mxit.roster.get_buddy(args[0])
-        
-        if not buddy:
-            buddy = self.con.mxit.roster.find_buddy(args[0])
+            if buddy and not buddy.is_room():
+                return (buddy, args)
+        if args:
+            buddy = self.con.mxit.roster.get_buddy(args[0])
             
-        return (buddy, args[1:])
+            if not buddy:
+                buddy = self.con.mxit.roster.find_buddy(args[0])
+                
+            return (buddy, args[1:])
+        else:
+            return (None, args)
         
     def get_room(self, channel, args):
-        if isinstance(channel, MixerRoomChannel):
-            buddy = channel.handle.room
-            return (buddy, args)
+        if isinstance(channel, MixerTextChannel):
+            buddy = channel.contact_handle.contact
+            if buddy and buddy.is_room():
+                return (buddy, args)
         
-        room = self.con.mxit.roster.get_room(args[0])
-        
-        if not room:
-            room = self.con.mxit.roster.find_room(args[0])
+        if args:
+            room = self.con.mxit.roster.get_room(args[0])
             
-        return (room, args[1:])
+            if not room:
+                room = self.con.mxit.roster.find_room(args[0])
+                
+            return (room, args[1:])
+        else:
+            return (None, args)
     
     def _get_func(self, name):
         return getattr(self, name)
@@ -90,10 +97,16 @@ class CommandHandler:
         
         
     def help(self, channel, *args):
-        name = args[0]
-        func = self._get_func(name)
-        doc = unicode(func.__doc__)
-        logger.info(u"DOC: %s" % doc)
+        if args:
+            name = args[0]
+            func = self._get_func(name)
+            doc = unicode(func.__doc__)
+        else:
+            doc = """ Available commands:
+            /mood - set your mood
+            /create - create a MultiMX room
+            /invite - invite a buddy to a MultiMX room
+            """
         self.con.info(doc, channel)
         
     def invite(self, channel, *args):
@@ -120,17 +133,23 @@ class CommandHandler:
         """
         room, args = self.get_room(channel, args)
         
-        logger.info("Leaving room %s" % (room))
-        self.con.mxit.leave_room(room)
+        if room:
+            logger.info("Leaving room %s" % (room))
+            self.con.mxit.leave_room(room)
+        else:
+            raise exceptions.Exception("Invalid room")
         
     def create(self, channel, *args):
         """ Usage: /create <name>
         
         Create a room with the specified name.
         """
-        name = args[0]
-        
-        self.con.mxit.create_room(name)
+        if args:
+            name = args[0]
+            
+            self.con.mxit.create_room(name)
+        else:
+            raise exceptions.Exception("Name must be specified")
         
     def mood(self, channel, *args):
         """ Usage: /mood <mood>

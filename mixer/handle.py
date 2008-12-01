@@ -125,7 +125,8 @@ class MixerContactHandle(MixerHandle):
 
     @property
     def contact(self):
-        return self._conn.mxit.roster.get_buddy(self.jid)
+        #return self._conn.mxit.roster.get_buddy(self.jid)
+        return self._conn.mxit.roster.buddy_or_room(self.jid)
     
 class MixerRoomHandle(MixerHandle):
     def __init__(self, connection, id, jid):

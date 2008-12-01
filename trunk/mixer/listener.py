@@ -132,7 +132,9 @@ class MixerListener:
             self.con.presence_received(buddy)
             for channel in map(self.con.get_list_channel, ['subscribe', 'publish']):
                 channel.check_buddy(buddy)
-                
+        elif 'mood' in attrs:
+            self.con.presence_received(buddy)
+            
         if 'name' in attrs:
             self.con._contact_alias_changed(buddy)
         if 'group' in attrs:

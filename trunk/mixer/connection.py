@@ -34,7 +34,7 @@ from mixer.listener import MixerListener
 from mixer.presence import MixerPresence
 from mixer.aliasing import MixerAliasing
 from mixer.commands import CommandHandler
-from mixer.handle import MixerHandleFactory
+from mixer.handle import MixerHandleFactory, MixerSelfHandle
 from mixer.channel.contact_list import MixerListChannel
 from mixer.channel.group import MixerGroupChannel
 from mixer.channel.multitext import MixerRoomChannel
@@ -164,6 +164,8 @@ class MixerConnection(telepathy.server.Connection, MixerPresence, MixerAliasing)
             channel = channel_manager.channel_for_list(handle, suppress_handler)
         elif type == telepathy.CHANNEL_TYPE_TEXT:
             if handle_type == telepathy.HANDLE_TYPE_CONTACT:
+                if isinstance(handle, MixerSelfHandle):
+                    raise telepathy.NotImplemented("Cannot chat to self")
                 channel = channel_manager.channel_for_text(handle, suppress_handler)
             elif handle_type == telepathy.HANDLE_TYPE_ROOM:
                 channel = channel_manager.channel_for_room(handle, suppress_handler)

@@ -1,17 +1,17 @@
 #summary Installation of Telepathy-Mixer
 #labels Featured,Phase-Deploy
 
-Current version: 0.2.0
+Current version: 0.2.1
 
-= Installation on Ubuntu 8.10 =
+= Installation on Ubuntu 8.04 and 8.10 =
 
-From Synaptic Package Manager, install "empathy" and "python-telepathy".
+In Synaptic Package Manager make sure you have the universe repository enabled, and install "empathy" and "python-telepathy".
 
-From the downloads page, download telepathy-mixer-0.2.0.tar.gz and extract it anywhere.
+From the downloads page, download telepathy-mixer-0.2.1.tar.gz and extract it anywhere.
 
 In a terminal, go the the directory where it was extracted, for example:
 {{{
-cd /home/user/telepathy-mixer-0.2.0/
+cd /home/user/telepathy-mixer-0.2.1/
 }}}
 
 The run:
@@ -24,19 +24,9 @@ sudo make install
 
 Now when you run Empathy, you should be able to add an account of type MXit.
 
-= Installation on Ubuntu 8.04 =
-Note: not tested yet, but should work.
-
-In Synaptic, add the following line to third-party sources:
- `deb http://ppa.launchpad.net/telepathy/ubuntu/ hardy main`
-
-This will give you more recent versions of Empathy, Telepathy and python-telepathy.
-
-Now follow the rest of the instructions as in Ubuntu 8.10.
-
 
 = Other Linux Distributions =
-See the following pages for installing the different components. Once you have Empathy running, all you need is telepathy-python.
+See the following pages for installing the different components. Once you have Empathy running, all you need is telepathy-python - then follow the instructions as for Ubuntu.
 
  * http://mission-control.sourceforge.net/
  * http://live.gnome.org/Empathy/Install
@@ -54,13 +44,24 @@ Tested to work with these options:
  * South Africa
  * Normal version
 
-This will give you a jad file. Open it with any text editor. Copy the code on the line starting with "c: ". It should look something like this:
+This will give you a jad file. Open it with any text editor. Copy the code on the line starting with "c: ". It be in this form:
 
 XXXXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXXXXXXXXXX
 
 Now run Empathy, and go to the account manager. Create a new account of type MXit. In the Client_id field, paste the code you just copied. Account is your phone number, in the format 27821234567. Password is your MXit pin.
 
 Note that the codes cannot be reused for different accounts.
+
+= Troubleshooting =
+If MXit is not listed under the account types in Empathy, something went wrong with the installation.
+
+If you can create an account, but cannot connect, the most probably cause is not installing python-telepathy. If you still cannot connect, run the following in a terminal, _just before connecting_:
+{{{
+/usr/local/libexec/telepathy-mixer
+}}}
+
+Send the output of this to the mailing list.
+Note that the script stops within a few seconds if you are not connected.
 
 = Feedback =
 

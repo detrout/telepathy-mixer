@@ -39,7 +39,7 @@ The release includes a compatible version of pymxit.
 = Compatibility =
 This release is based on version 0.17.x of the [http://telepathy.freedesktop.org/spec.html Telepathy Specification]. This means that recent versions of Empathy and Telepathy, which support this specification, are required.
 
-The version of Empathy included in the Ubuntu Intrepid universe repository is known to work, versions in Hardy not - use the versions from `deb http://ppa.launchpad.net/telepathy/ubuntu/ hardy main`.
+Known to work with Empathy 0.22.1 and python-telepathy 0.14.0 and later. These are included in the Ubuntu Hardy and Intrepid universe repositories.
 
 = Version 0.2.1 =
- * Character encoding is handled properly now. If try to send any invalid characters, it will be replaced with a ?.
+ * Character encoding is handled properly now. If try to send any invalid characters, it will be replaced with question marks.

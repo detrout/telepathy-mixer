@@ -31,12 +31,12 @@ For more information on these commands, use /help command
  * Formatted messages
  * Clickable service messages
 
-= Dependancies =
+== Dependancies ==
 `python-telepathy` is required to be able to run `telepathy-mixer`.
 
 The release includes a compatible version of pymxit.
 
-= Compatibility =
+== Compatibility ==
 This release is based on version 0.17.x of the [http://telepathy.freedesktop.org/spec.html Telepathy Specification]. This means that recent versions of Empathy and Telepathy, which support this specification, are required.
 
 Known to work with Empathy 0.22.1 and python-telepathy 0.14.0 and later. These are included in the Ubuntu Hardy and Intrepid universe repositories.

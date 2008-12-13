@@ -212,6 +212,14 @@ class MixerListener:
             self.con._advertise_disconnected()
                 
         
+    def file_pending(self, descriptor, buddy):
+        logger.info("%s wants to send us a file with name: %s" % (buddy, descriptor.name))
+        self.con.mxit.request_file(descriptor)
+        
+    def file_received(self, descriptor, data):
+        self.con.get_file_channel(descriptor)
+        logger.info("data received for %s" % (descriptor.name))
+        
     def error(self, message, exception):
         import traceback
         logger.error("Random exception occured: %s | %s" % (message, traceback.format_exc()))

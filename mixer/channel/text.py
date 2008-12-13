@@ -31,6 +31,7 @@ from mxit.handles import *
 
 from mixer.util.decorator import async, logexceptions
 from mixer.handle import MixerHandleFactory
+from mixer.coreproperties import MixerCoreProperties
 
 __all__ = ['MixerTextChannel']
 
@@ -38,17 +39,36 @@ logger = logging.getLogger('Mixer.TextChannel')
 
 
 class MixerTextChannel(
-        telepathy.server.ChannelTypeText):
+        telepathy.server.ChannelTypeText,
+        MixerCoreProperties):
 
-    def __init__(self, connection, handle):
+    def __init__(self, connection, handle, params):
         self._recv_id = 0
         self.contact_handle = handle
+        self.handle = handle
         self.con = connection
 
         telepathy.server.ChannelTypeText.__init__(self, connection, handle)
+        MixerCoreProperties.__init__(self)
         
+        self._register_r('org.freedesktop.Telepathy.Channel', 'ChannelType', 'Interfaces',
+                  'TargetHandle', 'TargetID', 'TargetHandleType',
+                  'Requested', 'InitiatorHandle', 'InitiatorID')
+        
+        
+        self.ChannelType = self._type
+        self.TargetHandle = self.handle.id
+        self.TargetID = self.handle.jid
+        self.TargetHandleType = self.handle.type
+        self.Requested = False
+        self.InitiatorHandle = self.handle.id
+        self.InitiatorID = self.handle.jid
 
 
+    @property
+    def Interfaces(self):
+        return list(self._interfaces)
+    
     @logexceptions(logger)
     def Send(self, message_type, text):
         contact = self.contact_handle.contact
@@ -66,8 +86,8 @@ class MixerTextChannel(
         
         
     def Close(self):
+        self.con.channel_removed(self)
         telepathy.server.ChannelTypeText.Close(self)
-        self.remove_from_connection()
         
     def message_received(self, message, type=telepathy.CHANNEL_TEXT_MESSAGE_TYPE_NORMAL):
         id = self._recv_id

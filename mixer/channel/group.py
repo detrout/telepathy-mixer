@@ -35,13 +35,13 @@ logger = logging.getLogger('Mixer.GroupChannel')
 
 class MixerGroupChannel(MixerListChannel):
 
-    def __init__(self, connection, handle):
+    def __init__(self, connection, handle, params):
         self.__pending_add = []
         self.__pending_remove = []
         MixerListChannel.__init__(self, connection, handle)
         
         self.GroupFlagsChanged(telepathy.CHANNEL_GROUP_FLAG_CAN_ADD | 
-                telepathy.CHANNEL_GROUP_FLAG_CAN_REMOVE | telepathy.CHANNEL_GROUP_FLAG_ONLY_ONE_GROUP, 0)
+                telepathy.CHANNEL_GROUP_FLAG_CAN_REMOVE | telepathy.CHANNEL_GROUP_FLAG_ONLY_ONE_GROUP | telepathy.CHANNEL_GROUP_FLAG_PROPERTIES, 0)
         
 
     @logexceptions(logger)

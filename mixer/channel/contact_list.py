@@ -22,10 +22,12 @@
 import logging
 import weakref
 
+import dbus
 import telepathy
 
 from mixer.util.decorator import async, logexceptions
 from mixer.handle import MixerHandleFactory
+from mixer.coreproperties import MixerCoreProperties
 
 from mxit.handles import Presence
 
@@ -33,7 +35,7 @@ __all__ = ['MixerContactListChannelFactory']
 
 logger = logging.getLogger("Mixer.ContactList")
 
-def MixerContactListChannelFactory(connection, handle):
+def MixerContactListChannelFactory(connection, handle, params):
     
     if handle.get_name() == 'subscribe':
         channel_class = MixerSubscribeListChannel
@@ -53,18 +55,70 @@ def MixerContactListChannelFactory(connection, handle):
 
 class MixerListChannel(
         telepathy.server.ChannelTypeContactList,
-        telepathy.server.ChannelInterfaceGroup):
+        telepathy.server.ChannelInterfaceGroup,
+        MixerCoreProperties):
     "Abstract Contact List channels"
 
     def __init__(self, connection, handle):
         self.con = connection
+        self.handle = handle
+        
         telepathy.server.ChannelTypeContactList.__init__(self, connection, handle)
         telepathy.server.ChannelInterfaceGroup.__init__(self)
+        MixerCoreProperties.__init__(self)
         self._populate(connection)
+        
+        self._register_r('org.freedesktop.Telepathy.Channel', 'ChannelType', 'Interfaces',
+                  'TargetHandle', 'TargetID', 'TargetHandleType',
+                  'Requested', 'InitiatorHandle', 'InitiatorID')
+        
+        self._register_r('org.freedesktop.Telepathy.Channel.Interface.Group', 'GroupFlags', 'HandleOwners', 'LocalPendingMembers', 'RemotePendingMembers', 'SelfHandle')
+        
+        self.ChannelType = self._type
+        self.TargetHandle = handle.id
+        self.TargetID = handle.name
+        self.TargetHandleType = handle.type
+        self.Requested = False
+        self.InitiatorHandle = handle.id
+        self.InitiatorID = handle.name
+        
+        self.GroupFlagsChanged(telepathy.CHANNEL_GROUP_FLAG_PROPERTIES, 0)
 
+
+    @property
+    def Interfaces(self):
+        return list(self._interfaces)
+    
     def GetLocalPendingMembersWithInfo(self):
         return []
     
+    @property
+    def Members(self):
+        return self.GetMembers()
+    
+    @property
+    def GroupFlags(self):
+        return self.GetGroupFlags()
+    
+    @property
+    def HandleOwners(self):
+        return dbus.Dictionary({}, signature='uu')
+    
+    @property
+    def LocalPendingMembers(self):
+        return dbus.Array(self.GetLocalPendingMembersWithInfo(), signature='(uuus)')
+    
+    @property
+    def RemotePendingMembers(self):
+        return dbus.Array(self.GetRemotePendingMembers(), signature='u')
+    
+    @property
+    def Members(self):
+        return dbus.Array(self.GetMembers(), signature='u')
+    
+    @property
+    def SelfHandle(self):
+        return 0
     
     @logexceptions(logger)
     def GetLocalPendingMembers(self):
@@ -147,6 +201,10 @@ class MixerListChannel(
         handle = MixerHandleFactory(self.con, 'contact', contact.jid)
         if self._contains_handle(handle):
             self.MembersChanged('', (), [handle], (), (), 0, telepathy.CHANNEL_GROUP_CHANGE_REASON_NONE)
+            
+    def Close(self):
+        self.con.channel_removed(self)
+        telepathy.server.ChannelTypeContactList.Close(self)
 
 class MixerSubscribeListChannel(MixerListChannel):
     """Subscribe List channel.

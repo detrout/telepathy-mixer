@@ -26,9 +26,13 @@ import exceptions
 import time
 
 import telepathy
+from telepathy._generated.Connection_Interface_Requests import ConnectionInterfaceRequests
+
+import dbus
 
 from mxit.connection import MxitConnection
 from mxit.handles import Status, StatusChangeReason, BuddyType, Message
+from mxit.jadreader import read_jad, parse_url
 
 from mixer.listener import MixerListener
 from mixer.presence import MixerPresence
@@ -40,6 +44,7 @@ from mixer.channel.group import MixerGroupChannel
 from mixer.channel.multitext import MixerRoomChannel
 from mixer.channel_manager import ChannelManager
 from mixer.util.decorator import async, logexceptions
+from mixer.coreproperties import MixerCoreProperties
 
 __all__ = ['MixerConnection']
 
@@ -48,30 +53,33 @@ logger = logging.getLogger('Mixer.Connection')
 
 
         
-class MixerConnection(telepathy.server.Connection, MixerPresence, MixerAliasing):
-
+class MixerConnection(telepathy.server.Connection,
+                      MixerPresence,
+                      MixerAliasing,
+                      ConnectionInterfaceRequests,
+                      MixerCoreProperties):
     _mandatory_parameters = {
             'account' : 's',
             'password' : 's',
-            'client_id' : 's',
+            'settings-file' : 's',
             }
-    _optional_parameters = {
-            'server' : 's',
-            'port' : 'q',
-            }
-    _parameter_defaults = {
-            'server' : 'stream.mxit.co.za',
-            'port' : 9119,
-            }
+    _parameter_defaults = {}
+    _optional_parameters = {}
 
     @logexceptions(logger)
     def __init__(self, manager, parameters):
         self.check_parameters(parameters)
-        
         self._manager = manager
         account = parameters['account']
-        server = parameters['server'].encode('utf-8')
-        port = parameters['port']
+        settings_file = parameters['settings-file']
+        file = open(settings_file, "r")
+        settings = read_jad(file)
+        file.close()
+        protocol, host, port, path = parse_url(settings['sl1'])
+        
+        logger.info("Settings: %s" % settings_file)
+        #server = parameters['server'].encode('utf-8')
+        #port = parameters['port']
         
         self._account = account
         
@@ -82,15 +90,19 @@ class MixerConnection(telepathy.server.Connection, MixerPresence, MixerAliasing)
             telepathy.server.Connection.__init__(self, 'mxit', account, 'mixer')
         except TypeError: # handle old versions of tp-python
             telepathy.server.Connection.__init__(self, 'mxit', account)
+        ConnectionInterfaceRequests.__init__(self)
         MixerPresence.__init__(self)
         MixerAliasing.__init__(self)
-
+        MixerCoreProperties.__init__(self)
+        
+        self._register_r('org.freedesktop.Telepathy.Connection.Interface.Requests', 'RequestableChannelClasses', 'Channels')
+        
         self.set_self_handle(MixerHandleFactory(self, 'self'))
-        con = MxitConnection(host=server, port=port)
+        con = MxitConnection(host=host, port=port, client_id=settings['c'], country_code=int(settings['cc']), language=settings['loc'])
         con.listeners.add(MixerListener(self))
-        con.id = parameters['account'].split('@')[0]
+        con.id = account.split('@')[0]
         con.password = parameters['password']
-        con.client_id = parameters['client_id']
+        #con.client_id = parameters['client_id']
         self.mxit = con
         self.commands = CommandHandler(self)
         
@@ -98,8 +110,21 @@ class MixerConnection(telepathy.server.Connection, MixerPresence, MixerAliasing)
         logger.info("Connection to the account %s created" % account)
         
 
-    
+    @property
+    def RequestableChannelClasses(self):
+        result = []
+        for type in self._channel_manager.channel_types:
+            result.append((type.fixed, type.allowed))
+        return dbus.Array(result, signature='(a{sv}as)')
+        #return dbus.Array(signature='(a{sv}as)')
    
+    @property
+    def Channels(self):
+        result = []
+        for channel in self._channel_manager.all_channels():
+            result.append((channel._object_path, channel.identifiers()))
+        return dbus.Array(result, signature='(oa{sv})')
+    
     def handle(self, handle_type, handle_id):
         if handle_type == 0 and handle_id == 0:
             return MixerHandleFactory(self, 'none')    #HACK
@@ -132,25 +157,61 @@ class MixerConnection(telepathy.server.Connection, MixerPresence, MixerAliasing)
         handles = []
         for name in names:
             #name = name.encode('utf-8')
-            if handle_type == telepathy.HANDLE_TYPE_CONTACT:
-                handle = MixerHandleFactory(self, 'contact', name)
-            elif handle_type == telepathy.HANDLE_TYPE_LIST:
-                handle = MixerHandleFactory(self, 'list', name)
-            elif handle_type == telepathy.HANDLE_TYPE_GROUP:
-                handle = MixerHandleFactory(self, 'group', name)
-                #logger.info("handle for group: %s" % name)
-            #elif handle_type == telepathy.HANDLE_TYPE_ROOM:
-            #    handle = MixerHandleFactory(self, 'room', name)
-                #logger.info("handle for room: %s" % name)
-            elif handle_type == telepathy.HANDLE_TYPE_NONE:
-                handle = MixerHandleFactory(self, 'none')
-                #logger.info("handle none")
-            else:
-                raise telepathy.NotAvailable('Handle type unsupported %d' % handle_type)
+            handle = self.get_handle(handle_type, name)
             handles.append(handle.id)
             self.add_client_handle(handle, sender)
         return handles
         
+    def get_handle(self, handle_type, name):
+        if handle_type == telepathy.HANDLE_TYPE_CONTACT:
+            handle = MixerHandleFactory(self, 'contact', name)
+        elif handle_type == telepathy.HANDLE_TYPE_LIST:
+            handle = MixerHandleFactory(self, 'list', name)
+        elif handle_type == telepathy.HANDLE_TYPE_GROUP:
+            handle = MixerHandleFactory(self, 'group', name)
+            #logger.info("handle for group: %s" % name)
+        #elif handle_type == telepathy.HANDLE_TYPE_ROOM:
+        #    handle = MixerHandleFactory(self, 'room', name)
+            #logger.info("handle for room: %s" % name)
+        elif handle_type == telepathy.HANDLE_TYPE_NONE:
+            handle = MixerHandleFactory(self, 'none')
+            #logger.info("handle none")
+        else:
+            raise telepathy.NotAvailable('Handle type unsupported %d' % handle_type)
+        return handle
+    
+    @logexceptions(logger)
+    def CreateChannel(self, request):
+        logger.info('CreateChannel %r' % request)
+        channel, created = self._channel_manager.create_channel(request, True)
+        if not created:
+            raise telepathy.NotAvailable('Channel already exists: %r' % request)
+        channel.Requested = True
+        
+        props = channel.identifiers()
+        return (channel._object_path, props)
+    
+    @async
+    def channel_created(self, channel, suppress_handler):
+        ident = channel.identifiers()
+        logger.info("New Channel: %r" % ident)
+        self.NewChannels([(channel._object_path, ident)])
+        self.add_channel(channel, channel.handle, suppress_handler)
+        
+    @async
+    def channel_removed(self, channel):
+        self.ChannelClosed(channel._object_path)
+        #channel.remove_from_connection()
+        
+    @logexceptions(logger)
+    def EnsureChannel(self, request):
+        logger.info('EnsureChannel %r' % request)
+        channel, created = self._channel_manager.create_channel(request, True)
+        props = channel.identifiers()
+        
+        #TODO: also 'Yours' if created by the connection manager
+        return (created, channel._object_path, props)
+    
     @logexceptions(logger)
     def RequestChannel(self, type, handle_type, handle_id, suppress_handler):    
         self.check_connected()
@@ -184,6 +245,7 @@ class MixerConnection(telepathy.server.Connection, MixerPresence, MixerAliasing)
         else:
             raise telepathy.NotImplemented("unknown channel type %s" % type)
         
+        channel.Requested = True
         return channel._object_path
         
 
@@ -220,9 +282,14 @@ class MixerConnection(telepathy.server.Connection, MixerPresence, MixerAliasing)
         return self.get_buddy_channel(room)
         #return self._channel_manager.channel_for_room(handle)
     
+    def get_file_channel(self, descriptor):
+        info = self.mxit.roster.info_buddy
+        handle = self.handle_for_buddy(info)
+        return self._channel_manager.channel_for_file(handle)
+        
     def get_group_channels(self):
         channels = []
-        for handle, ch in self._channel_manager._list_channels.items():
+        for ch in self._channel_manager.list_channels():
             if isinstance(ch, MixerGroupChannel):
                 channels.append(ch)
         return channels
